@@ -3,8 +3,12 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Put;
 use App\Repository\UserRoleRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -17,6 +21,24 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRoleRepository::class)]
 #[ApiResource(
+    operations: [
+        new Get(),
+        new GetCollection(),
+        new \ApiPlatform\Metadata\Post(
+            security: 'is_granted("Create")',
+        ),
+        new Put(
+            security: 'is_granted("Edit", object)',
+            securityPostDenormalize: 'is_granted("Edit", object)',
+        ),
+        new Patch(
+            security: 'is_granted("Edit", object)',
+            securityPostDenormalize: 'is_granted("Edit", object)',
+        ),
+        new Delete(
+            security: 'is_granted("Edit", object)',
+        )
+    ],
     normalizationContext: ['groups' => ['userRole:read']],
     denormalizationContext: ['groups' => ['userRole:write']],
 )]
@@ -70,7 +92,7 @@ class UserRole
         return $this;
     }
 
-    public function isIsAdmin(): ?bool
+    public function getIsAdmin(): ?bool
     {
         return $this->isAdmin;
     }

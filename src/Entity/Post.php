@@ -6,6 +6,11 @@ use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Put;
 use App\Repository\PostRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -16,6 +21,24 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: PostRepository::class)]
 #[ApiResource(
+    operations: [
+        new Get(),
+        new GetCollection(),
+        new \ApiPlatform\Metadata\Post(
+            security: 'is_granted("Create")',
+        ),
+        new Put(
+            security: 'is_granted("Edit", object)',
+            securityPostDenormalize: 'is_granted("Edit", object)',
+        ),
+        new Patch(
+            security: 'is_granted("Edit", object)',
+            securityPostDenormalize: 'is_granted("Edit", object)',
+        ),
+        new Delete(
+            security: 'is_granted("Edit", object)',
+        )
+    ],
     normalizationContext: ['groups' => ['post:read']],
     denormalizationContext: ['groups' => ['post:write']],
 )]
@@ -44,7 +67,6 @@ class Post
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\OneToOne(inversedBy: 'post', cascade: ['persist', 'remove'])]
-    #[ORM\JoinColumn(nullable: false)]
     private ?User $author = null;
 
     public function __construct()
