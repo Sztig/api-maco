@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
@@ -12,6 +13,7 @@ use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Serializer\Annotation\SerializedName;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -69,8 +71,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\NotBlank]
     private ?string $lastName = null;
 
-    #[ORM\ManyToOne(inversedBy: 'users')]
+    #[ORM\ManyToOne(inversedBy: 'users', fetch: "EAGER")]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['user:read'])]
     private ?UserRole $role = null;
 
     public function getId(): Uuid
@@ -112,21 +115,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         // $this->plainPassword = null;
     }
 
-//    /**
-//     * @return Collection<int, UserRole>
-//     */
-//    public function getRole(): Collection
-//    {
-//        return $this->role;
-//    }
-
+    #[Groups('user:read')]
+    #[SerializedName('role')]
     public function getRoles(): array
     {
-        $roles = [];
-
-        foreach ($this->role as $role){
-            $roles[] = $role->getName();
-        }
+        $roles[] = $this->role->getName();
 
         return $roles;
     }
