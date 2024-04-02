@@ -3,16 +3,36 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
 use App\Repository\UserRepository;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Validator\Constraints as Assert;
+
 #[ORM\Entity(repositoryClass: UserRepository::class)]
-#[ApiResource]
+#[ApiResource(
+    normalizationContext: ['groups' => ['user:read']],
+    denormalizationContext: ['groups' => ['user:write']],
+)]
+#[ApiResource(
+    uriTemplate: '/user_roles/{id}/users._format',
+    shortName: 'UserRole',
+    operations: [new GetCollection()],
+    uriVariables: [
+        'id' => new Link(
+            fromProperty: 'users',
+            fromClass: UserRole::class
+        )
+    ],
+    normalizationContext: ['groups' => ['user:read']],
+)]
+#[UniqueEntity(fields: ['email'], message: 'There is already an account with this email')]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
@@ -22,27 +42,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Uuid $id;
 
     /**
-     * @var list<string> The user roles
-     */
-    #[ORM\Column]
-    private array $roles = [];
-
-    /**
      * @var string The hashed password
      */
     #[ORM\Column]
+    #[Groups(['user:write'])]
+    #[Assert\NotBlank]
     private ?string $password = null;
 
-    #[ORM\OneToMany(targetEntity: UserRole::class, mappedBy: 'users')]
-    private Collection $role;
-
     #[ORM\OneToOne(mappedBy: 'author', cascade: ['persist', 'remove'])]
+    #[Groups(['user:read', 'user:write'])]
     private ?Post $post = null;
 
-    public function __construct()
-    {
-        $this->role = new ArrayCollection();
-    }
+    #[ORM\Column(length: 255)]
+    #[Groups(['user:read', 'user:write'])]
+    #[Assert\NotBlank]
+    #[Assert\Email]
+    private ?string $email = null;
+
+    #[ORM\Column(length: 255)]
+    #[Groups(['user:read', 'user:write'])]
+    #[Assert\NotBlank]
+    private ?string $firstName = null;
+
+    #[ORM\Column(length: 255)]
+    #[Groups(['user:read', 'user:write'])]
+    #[Assert\NotBlank]
+    private ?string $lastName = null;
+
+    #[ORM\ManyToOne(inversedBy: 'users')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?UserRole $role = null;
 
     public function getId(): Uuid
     {
@@ -56,31 +85,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function getUserIdentifier(): string
     {
-        return (string) $this->uuid;
-    }
-
-    /**
-     * @see UserInterface
-     *
-     * @return list<string>
-     */
-    public function getRoles(): array
-    {
-        $roles = $this->roles;
-        // guarantee every user at least has ROLE_USER
-        $roles[] = 'ROLE_USER';
-
-        return array_unique($roles);
-    }
-
-    /**
-     * @param list<string> $roles
-     */
-    public function setRoles(array $roles): static
-    {
-        $this->roles = $roles;
-
-        return $this;
+        return (string) $this->id;
     }
 
     /**
@@ -107,34 +112,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         // $this->plainPassword = null;
     }
 
-    /**
-     * @return Collection<int, UserRole>
-     */
-    public function getRole(): Collection
-    {
-        return $this->role;
-    }
+//    /**
+//     * @return Collection<int, UserRole>
+//     */
+//    public function getRole(): Collection
+//    {
+//        return $this->role;
+//    }
 
-    public function addRole(UserRole $role): static
+    public function getRoles(): array
     {
-        if (!$this->role->contains($role)) {
-            $this->role->add($role);
-            $role->setUsers($this);
+        $roles = [];
+
+        foreach ($this->role as $role){
+            $roles[] = $role->getName();
         }
 
-        return $this;
-    }
-
-    public function removeRole(UserRole $role): static
-    {
-        if ($this->role->removeElement($role)) {
-            // set the owning side to null (unless already changed)
-            if ($role->getUsers() === $this) {
-                $role->setUsers(null);
-            }
-        }
-
-        return $this;
+        return $roles;
     }
 
     public function getPost(): ?Post
@@ -150,6 +144,54 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         }
 
         $this->post = $post;
+
+        return $this;
+    }
+
+    public function getEmail(): ?string
+    {
+        return $this->email;
+    }
+
+    public function setEmail(string $email): static
+    {
+        $this->email = $email;
+
+        return $this;
+    }
+
+    public function getFirstName(): ?string
+    {
+        return $this->firstName;
+    }
+
+    public function setFirstName(string $firstName): static
+    {
+        $this->firstName = $firstName;
+
+        return $this;
+    }
+
+    public function getLastName(): ?string
+    {
+        return $this->lastName;
+    }
+
+    public function setLastName(string $lastName): static
+    {
+        $this->lastName = $lastName;
+
+        return $this;
+    }
+
+    public function getRole(): ?UserRole
+    {
+        return $this->role;
+    }
+
+    public function setRole(?UserRole $role): static
+    {
+        $this->role = $role;
 
         return $this;
     }

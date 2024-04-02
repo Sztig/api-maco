@@ -2,15 +2,25 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use App\Repository\PostRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: PostRepository::class)]
-#[ApiResource]
+#[ApiResource(
+    normalizationContext: ['groups' => ['post:read']],
+    denormalizationContext: ['groups' => ['post:write']],
+)]
+#[ApiFilter(SearchFilter::class, strategy: 'partial', properties: ['title', 'content', 'author.firstName', 'author.lastName'])]
+#[ApiFilter(OrderFilter::class, properties: ['title', 'createdAt', 'author.firstName', 'author.lastName'])]
 class Post
 {
     #[ORM\Id]
@@ -20,9 +30,14 @@ class Post
     private Uuid $id;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['post:read', 'post:write'])]
+    #[Assert\NotBlank()]
+    #[ApiFilter(SearchFilter::class, strategy: 'partial')]
     private ?string $title = null;
 
     #[ORM\Column(type: Types::TEXT)]
+    #[Groups(['post:read', 'post:write'])]
+    #[Assert\NotBlank()]
     private ?string $content = null;
 
     #[ORM\Column]
@@ -31,6 +46,11 @@ class Post
     #[ORM\OneToOne(inversedBy: 'post', cascade: ['persist', 'remove'])]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $author = null;
+
+    public function __construct()
+    {
+        $this->createdAt = new \DateTimeImmutable();
+    }
 
     public function getId(): Uuid
     {
